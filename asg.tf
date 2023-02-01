@@ -154,9 +154,15 @@ resource "aws_autoscaling_group" "this" {
 resource "null_resource" "create-rekognition-collection" {
 
   triggers = {
-    asg_name    = aws_autoscaling_group.this.name
-    config_file = templatefile("${path.module}/config.json.tpl", { asg_name = aws_autoscaling_group.this.name, queue_name = module.sqs.queue_name })
-    region      = var.region
+    asg_name = aws_autoscaling_group.this.name
+    config_file = templatefile("${path.module}/config.json.tpl",
+      {
+        asg_name     = aws_autoscaling_group.this.name,
+        queue_name   = module.sqs.queue_name,
+        target_value = var.target_value
+      }
+    )
+    region = var.region
   }
 
   provisioner "local-exec" {

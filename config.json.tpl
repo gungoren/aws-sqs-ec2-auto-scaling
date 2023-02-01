@@ -45,5 +45,5 @@
             }
         ]
     },
-    "TargetValue": 10
+    "TargetValue": ${target_value}
 }
