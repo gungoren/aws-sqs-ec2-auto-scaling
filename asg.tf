@@ -70,9 +70,9 @@ locals {
     yum install -y python38
     python3 -m pip install boto3
     
-    wget https://gist.githubusercontent.com/gungoren/0d1e19e076607384bec3cf7c9a78b1f2/raw/6827804d0450cc8b6612ec2f4231e7159f881331/sqs_consumer.py
+    wget https://gist.githubusercontent.com/gungoren/0d1e19e076607384bec3cf7c9a78b1f2/raw/bf3ab8852d526ba0b4be2b99b62e26111d478767/sqs_consumer.py
 
-    QUEUE_URL="${module.sqs.queue_url}" AWS_DEFAULT_REGION="${var.region}" python3 sqs_consumer.py
+    QUEUE_URL="${module.sqs.queue_url}" AWS_DEFAULT_REGION="${var.region}" python3 sqs_consumer.py > queue.log &
   USERDATA
 }
 
@@ -150,50 +150,20 @@ resource "aws_autoscaling_group" "this" {
   }
 }
 
-
-resource "null_resource" "create-rekognition-collection" {
-
-  triggers = {
-    asg_name = aws_autoscaling_group.this.name
-    config_file = templatefile("${path.module}/config.json.tpl",
-      {
-        asg_name     = aws_autoscaling_group.this.name,
-        queue_name   = module.sqs.queue_name,
-        target_value = var.target_value
-      }
-    )
-    region = var.region
-  }
-
-  provisioner "local-exec" {
-    when    = create
-    command = <<-EOT
-      tee /tmp/config.json <<CONFIG_JSON
-      ${self.triggers.config_file}
-      CONFIG_JSON
-      aws autoscaling put-scaling-policy --policy-name sqs-backlog-target-tracking-scaling-policy \
-        --auto-scaling-group-name ${self.triggers.asg_name} --policy-type TargetTrackingScaling \
-        --target-tracking-configuration file:///tmp/config.json \
-        --region ${self.triggers.region} 
-    EOT
-  }
-}
-
-/*
 resource "aws_autoscaling_policy" "tracking_policy" {
   autoscaling_group_name = aws_autoscaling_group.this.name
-  name                   = "${var.project_name}-tracking-scaling-policy"
+  name                   = "${var.project_name}-sqs-backlog-target-tracking-scaling-policy"
 
   policy_type = "TargetTrackingScaling"
 
   target_tracking_configuration {
-    target_value     = 10
+    target_value = 10
 
     customized_metric_specification {
       metrics {
-        id = "m1"
+        id    = "m1"
         label = "Get the queue size (the number of messages waiting to be processed)"
-        
+
         metric_stat {
           metric {
             namespace   = "AWS/SQS"
@@ -201,7 +171,7 @@ resource "aws_autoscaling_policy" "tracking_policy" {
             dimensions {
               name  = "QueueName"
               value = module.sqs.queue_name
-            }  
+            }
           }
           stat = "Sum"
         }
@@ -209,7 +179,7 @@ resource "aws_autoscaling_policy" "tracking_policy" {
       }
 
       metrics {
-        id = "m2"
+        id    = "m2"
         label = "Get the group size (the number of InService instances)"
         metric_stat {
           metric {
@@ -233,5 +203,5 @@ resource "aws_autoscaling_policy" "tracking_policy" {
       }
     }
   }
-}*/
+}
 
